@@ -65,11 +65,7 @@ def main():
     now = time.strftime("%H:%M UTC", time.gmtime())
     print(f"\n=== CHECK {now} ===")
 
-    try:
-        r    = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
-                            headers=HEADERS_BASE, timeout=10)
-        mark = float(r.json()["price"])
-        mark = None
+    mark = None
     for url, key in [
         ("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", "price"),
         ("https://min-api.cryptocompare.com/data/price?fsym=BTC&tsym=USD", "USD"),
@@ -87,6 +83,9 @@ def main():
         send_tg("[ERROR] All ticker sources failed")
         return
 
+    try:
+        p    = private_get("/v5/position/list", "category=linear&symbol=BTCUSDT")
+        buys = [x for x in p["result"]["list"] if x["side"] == "Buy"]
         pos  = buys[0] if buys else None
         size = float(pos["size"]) if pos else 0
         sl   = float(pos["stopLoss"]) if pos and pos["stopLoss"] else 0
@@ -129,23 +128,16 @@ def main():
 
     else:
         pct = round(((mark - ENTRY) / ENTRY) * 100, 3)
-        send_tg(f"[UPDATE] BTCUSDT - {now}\n\n"
-                f"Mark  : {mark}\n"
-                f"Size  : {size} BTC\n"
-                f"SL    : {sl}\n"
-                f"PnL   : {arrow}${round(upnl,2)} USDT ({arrow}{pct}%)\n"
-                f"TP2 : {TP2_PRICE} | TP3 : {TP3_PRICE}")
+        print(f"[WATCHING] mark={mark} size={size} sl={sl} pnl={arrow}{round(upnl,2)} ({arrow}{pct}%)")
 
 if __name__ == "__main__":
     import os
     if os.getenv("ONCE"):
         main()
     else:
-        send_tg("[ON] Bybit watcher started - checking every 30s")
         while True:
             try:
                 main()
             except Exception as e:
                 print(f"LOOP ERROR: {e}")
-                send_tg(f"[ERROR] Loop crashed: {e}")
             time.sleep(30)
