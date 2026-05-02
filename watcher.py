@@ -20,11 +20,11 @@ AFTER_TP2 = 0.022
 BE_SL     = ENTRY
 TP1_SL    = TP1_PRICE
 
+HEADERS_BASE = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
 def sign(ts, data):
     payload = ts + API_KEY + RECV_WIN + data
     return hmac.new(API_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
-
-HEADERS_BASE = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 def private_get(path, qs):
     ts  = str(int(time.time() * 1000))
@@ -65,10 +65,6 @@ def main():
     now = time.strftime("%H:%M UTC", time.gmtime())
     print(f"\n=== CHECK {now} ===")
 
-    def main():
-    now = time.strftime("%H:%M UTC", time.gmtime())
-    print(f"\n=== CHECK {now} ===")
-
     mark = None
     errors = []
     sources = [
@@ -89,6 +85,9 @@ def main():
         send_tg("[ERROR] All tickers failed:\n" + "\n".join(errors))
         return
 
+    try:
+        p    = private_get("/v5/position/list", "category=linear&symbol=BTCUSDT")
+        buys = [x for x in p["result"]["list"] if x["side"] == "Buy"]
         pos  = buys[0] if buys else None
         size = float(pos["size"]) if pos else 0
         sl   = float(pos["stopLoss"]) if pos and pos["stopLoss"] else 0
