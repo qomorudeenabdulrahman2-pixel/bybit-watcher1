@@ -25,11 +25,13 @@ def sign(ts, data):
     payload = ts + API_KEY + RECV_WIN + data
     return hmac.new(API_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
+HEADERS_BASE = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}
+
 def public_get(path, qs):
     # Public endpoint - no auth needed, use mainnet
     url = f"{BASE_URL}{path}?{qs}"
     print(f"GET {url}")
-    r = requests.get(url, timeout=10)
+    r = requests.get(url, headers=HEADERS_BASE, timeout=10)
     print(f"STATUS: {r.status_code} | BODY: {r.text[:300]}")
     return r.json()
 
@@ -37,7 +39,7 @@ def private_get(path, qs):
     # Private endpoint - needs auth, use demo
     ts  = str(int(time.time() * 1000))
     sig = sign(ts, qs)
-    h   = {"X-BAPI-API-KEY": API_KEY, "X-BAPI-TIMESTAMP": ts,
+    h   = {**HEADERS_BASE, "X-BAPI-API-KEY": API_KEY, "X-BAPI-TIMESTAMP": ts,
            "X-BAPI-RECV-WINDOW": RECV_WIN, "X-BAPI-SIGN": sig}
     url = f"{DEMO_URL}{path}?{qs}"
     print(f"PRIVATE GET {url}")
@@ -49,7 +51,7 @@ def private_post(path, body_dict):
     body = json.dumps(body_dict, separators=(",", ":"))
     ts   = str(int(time.time() * 1000))
     sig  = sign(ts, body)
-    h    = {"X-BAPI-API-KEY": API_KEY, "X-BAPI-TIMESTAMP": ts,
+    h    = {**HEADERS_BASE, "X-BAPI-API-KEY": API_KEY, "X-BAPI-TIMESTAMP": ts,
             "X-BAPI-RECV-WINDOW": RECV_WIN, "X-BAPI-SIGN": sig,
             "Content-Type": "application/json"}
     r = requests.post(DEMO_URL + path, headers=h, data=body, timeout=10)
