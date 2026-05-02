@@ -6,7 +6,6 @@ import requests
 
 API_KEY    = "NjOflg3Wd05i4SV6w3"
 API_SECRET = "TpeW3oHq44G79NwiSY4SQJH0IfNfFvkEYSCE"
-BASE_URL   = "https://api.bybit.com"
 DEMO_URL   = "https://api-demo.bybit.com"
 RECV_WIN   = "5000"
 TG_TOKEN   = "6921057621:AAG1ZV7RJlx6zGo_mML2vSPDxAZX86t9-S8"
@@ -25,26 +24,15 @@ def sign(ts, data):
     payload = ts + API_KEY + RECV_WIN + data
     return hmac.new(API_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
-HEADERS_BASE = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}
-
-def public_get(path, qs):
-    # Public endpoint - no auth needed, use mainnet
-    url = f"{BASE_URL}{path}?{qs}"
-    print(f"GET {url}")
-    r = requests.get(url, headers=HEADERS_BASE, timeout=10)
-    print(f"STATUS: {r.status_code} | BODY: {r.text[:300]}")
-    return r.json()
+HEADERS_BASE = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 def private_get(path, qs):
-    # Private endpoint - needs auth, use demo
     ts  = str(int(time.time() * 1000))
     sig = sign(ts, qs)
     h   = {**HEADERS_BASE, "X-BAPI-API-KEY": API_KEY, "X-BAPI-TIMESTAMP": ts,
            "X-BAPI-RECV-WINDOW": RECV_WIN, "X-BAPI-SIGN": sig}
-    url = f"{DEMO_URL}{path}?{qs}"
-    print(f"PRIVATE GET {url}")
-    r = requests.get(url, headers=h, timeout=10)
-    print(f"STATUS: {r.status_code} | BODY: {r.text[:300]}")
+    r = requests.get(f"{DEMO_URL}{path}?{qs}", headers=h, timeout=10)
+    print(f"POS STATUS: {r.status_code} | BODY: {r.text[:300]}")
     return r.json()
 
 def private_post(path, body_dict):
@@ -78,8 +66,10 @@ def main():
     print(f"\n=== CHECK {now} ===")
 
     try:
-        t    = public_get("/v5/market/tickers", "category=linear&symbol=BTCUSDT")
-        mark = float(t["result"]["list"][0]["markPrice"])
+        r    = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+                            headers=HEADERS_BASE, timeout=10)
+        mark = float(r.json()["price"])
+        print(f"MARK (Binance): {mark}")
     except Exception as e:
         print(f"TICKER ERROR: {e}")
         send_tg(f"[ERROR] Ticker failed: {e}")
@@ -138,11 +128,15 @@ def main():
                 f"TP2 : {TP2_PRICE} | TP3 : {TP3_PRICE}")
 
 if __name__ == "__main__":
-    send_tg("[ON] Bybit watcher started on Render - checking every 30s")
-    while True:
-        try:
-            main()
-        except Exception as e:
-            print(f"LOOP ERROR: {e}")
-            send_tg(f"[ERROR] Loop crashed: {e}")
-        time.sleep(30)
+    import os
+    if os.getenv("ONCE"):
+        main()
+    else:
+        send_tg("[ON] Bybit watcher started - checking every 30s")
+        while True:
+            try:
+                main()
+            except Exception as e:
+                print(f"LOOP ERROR: {e}")
+                send_tg(f"[ERROR] Loop crashed: {e}")
+            time.sleep(30)
