@@ -69,15 +69,24 @@ def main():
         r    = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
                             headers=HEADERS_BASE, timeout=10)
         mark = float(r.json()["price"])
-        print(f"MARK (Binance): {mark}")
-    except Exception as e:
-        print(f"TICKER ERROR: {e}")
-        send_tg(f"[ERROR] Ticker failed: {e}")
+        mark = None
+    for url, key in [
+        ("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", "price"),
+        ("https://min-api.cryptocompare.com/data/price?fsym=BTC&tsym=USD", "USD"),
+    ]:
+        try:
+            resp = requests.get(url, headers=HEADERS_BASE, timeout=10)
+            data = resp.json()
+            print(f"TICKER RAW: {data}")
+            mark = float(data[key])
+            print(f"MARK: {mark}")
+            break
+        except Exception as e:
+            print(f"TICKER FAIL ({url}): {e}")
+    if mark is None:
+        send_tg("[ERROR] All ticker sources failed")
         return
 
-    try:
-        p    = private_get("/v5/position/list", "category=linear&symbol=BTCUSDT")
-        buys = [x for x in p["result"]["list"] if x["side"] == "Buy"]
         pos  = buys[0] if buys else None
         size = float(pos["size"]) if pos else 0
         sl   = float(pos["stopLoss"]) if pos and pos["stopLoss"] else 0
