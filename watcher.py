@@ -6,7 +6,7 @@ import requests
 
 API_KEY    = "NjOflg3Wd05i4SV6w3"
 API_SECRET = "TpeW3oHq44G79NwiSY4SQJH0IfNfFvkEYSCE"
-BASE_URL   = "https://api-demo.bybit.com"
+BASE_URL   = "https://api.bybit.com"
 RECV_WIN   = "5000"
 TG_TOKEN   = "6921057621:AAG1ZV7RJlx6zGo_mML2vSPDxAZX86t9-S8"
 TG_CHAT    = "6664537343"
@@ -29,7 +29,9 @@ def bybit_get(path, qs):
     sig = sign(ts, qs)
     h   = {"X-BAPI-API-KEY": API_KEY, "X-BAPI-TIMESTAMP": ts,
            "X-BAPI-RECV-WINDOW": RECV_WIN, "X-BAPI-SIGN": sig}
-    return requests.get(f"{BASE_URL}{path}?{qs}", headers=h, timeout=10).json()
+    r = requests.get(f"{BASE_URL}{path}?{qs}", headers=h, timeout=10)
+    print(f"RAW: {r.status_code} {r.text[:200]}")
+    return r.json()
 
 def bybit_post(path, body_dict):
     body = json.dumps(body_dict, separators=(",", ":"))
