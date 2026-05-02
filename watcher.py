@@ -65,27 +65,30 @@ def main():
     now = time.strftime("%H:%M UTC", time.gmtime())
     print(f"\n=== CHECK {now} ===")
 
+    def main():
+    now = time.strftime("%H:%M UTC", time.gmtime())
+    print(f"\n=== CHECK {now} ===")
+
     mark = None
-    for url, key in [
-        ("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", "price"),
-        ("https://min-api.cryptocompare.com/data/price?fsym=BTC&tsym=USD", "USD"),
-    ]:
+    errors = []
+    sources = [
+        ("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", lambda d: float(d["price"])),
+        ("https://api.kraken.com/0/public/Ticker?pair=XBTUSD",         lambda d: float(d["result"]["XXBTZUSD"]["c"][0])),
+        ("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", lambda d: float(d["bitcoin"]["usd"])),
+    ]
+    for url, extractor in sources:
         try:
             resp = requests.get(url, headers=HEADERS_BASE, timeout=10)
-            data = resp.json()
-            print(f"TICKER RAW: {data}")
-            mark = float(data[key])
-            print(f"MARK: {mark}")
+            mark = extractor(resp.json())
+            print(f"MARK from {url[:30]}: {mark}")
             break
         except Exception as e:
-            print(f"TICKER FAIL ({url}): {e}")
+            errors.append(f"{url[8:30]}: {e}")
+            print(f"TICKER FAIL: {e}")
     if mark is None:
-        send_tg("[ERROR] All ticker sources failed")
+        send_tg("[ERROR] All tickers failed:\n" + "\n".join(errors))
         return
 
-    try:
-        p    = private_get("/v5/position/list", "category=linear&symbol=BTCUSDT")
-        buys = [x for x in p["result"]["list"] if x["side"] == "Buy"]
         pos  = buys[0] if buys else None
         size = float(pos["size"]) if pos else 0
         sl   = float(pos["stopLoss"]) if pos and pos["stopLoss"] else 0
